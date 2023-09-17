@@ -36,7 +36,7 @@ LOADING_THOUGHTS = [
 ]
 
 def get_random_thought():
-    return LOADING_THOUGHTS[random.randint(0, len(LOADING_THOUGHTS))]
+    return LOADING_THOUGHTS[random.randint(0, len(LOADING_THOUGHTS)-1)]
       
 
 def new_chat():
@@ -79,7 +79,8 @@ with st.sidebar:
     st.markdown("# CashFlowIQ")
     st.markdown("---")
     st.markdown("CashFlowIQ can analyze your personal finance transactions and help you save money!")
-    openai_api_key = st.sidebar.text_input("OpenAI API Key", key="chatbot_api_key", type="password", autocomplete="off")
+    # openai_api_key = st.sidebar.text_input("OpenAI API Key", key="chatbot_api_key", type="password", autocomplete="off")
+    openai_api_key = st.secrets.openai.api_key
     uploaded = st.file_uploader("Upload Transactions")
     st.sidebar.button("New Chat", on_click=new_chat, type="primary")
     st.markdown("---")
@@ -102,20 +103,21 @@ if uploaded is not None and "agent" not in st.session_state and openai_api_key:
                 agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
                 memory=st.session_state["conversation_memory"],
                 handle_parsing_errors=True,
-                verbose=True, 
+                verbose=False, 
                 max_iterations=5
             )
 
     add_assistant_response("Thanks for uploading that! I'll start crunching the numbers right away...", None)
     intial_prompts = [
-        "Describe the data in the file I just uploaded?",
+        # "Describe the data in the file I just uploaded?",
         # "How many records are in the file I uploaded?",
         "What are my top 5 expense categories?",
+        "What are my most common vendor transactions?",
         # "How has my spending in groceries changed over the year?",
         # "Are there any unusual or suspicious transactions in my accounts?",
         # "What are the columns in the file i uploaded?",
         # "Use the pandas df.describe() function on the dataframe and provide your thoughts and analysis in your final answer.",
-        "What's the total amount of money spent in the file i uploaded?",
+        # "What's the total amount of money spent in the file i uploaded?",
         # "How much money do is spent in a typical month?"
         # "Generate a single line of python code not surrounded by quotes to draw a streamlit line chart using the object 'uploaded'. do not explain your response or ask about follow up questions. streamlit is already imported and available as 'st'. return only valid, executable python code that starts with the characters 'st.'. For example, here's a working line that your response should always look like: st.line_chart(pd.read_csv(uploaded), x=\"Date\", y=\"Amount\")"
     ]
