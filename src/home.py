@@ -5,14 +5,9 @@ from langchain.callbacks import get_openai_callback
 from collections import Counter
 import random
 
-from langchain.agents import initialize_agent, AgentType, Tool, create_pandas_dataframe_agent
+from langchain.agents import initialize_agent, AgentType, Tool, create_csv_agent
 from langchain.memory import ConversationBufferMemory
-from langchain.tools import StructuredTool
-from langchain.pydantic_v1 import (
-    BaseModel)
 
-
-from tools.csv_agent import create_csv_agent
 
 NEW_CHAT_START = [{"role": "assistant", "content": "Upload your transactions file to the left and I'll get started!"}]
 BUDGET_PROMPT = """
@@ -99,15 +94,7 @@ with st.sidebar:
 if uploaded is not None and "agent" not in st.session_state and openai_api_key:
     st.session_state["model_id"] = "gpt-3.5-turbo-0613"
     st.session_state["llm"] = ChatOpenAI(model_name=st.session_state["model_id"], openai_api_key=openai_api_key, temperature=0)
-    tools = [
-        # StructuredTool(
-        #     name="pandas agent",
-        #     func=create_pandas_dataframe_agent,
-        #     args_schema={'df': pd.DataFrame, 'llm': BaseModel},
-        #     # args={'df': uploaded, 'llm': st.session_state["llm"]},
-        #     description="Construct a pandas agent from an LLM and dataframe. useful for analyzing data sets. alwayspass in 'uploaded' object as the dataframe to initialize without error."
-        #     )
-        ]
+    tools = []
     st.session_state["agent"] = create_csv_agent(
                 path=uploaded,
                 tools=tools,
@@ -121,23 +108,23 @@ if uploaded is not None and "agent" not in st.session_state and openai_api_key:
 
     add_assistant_response("Thanks for uploading that! I'll start crunching the numbers right away...", None)
     intial_prompts = [
-        # "Describe the data in the file I just uploaded?",
+        "Describe the data in the file I just uploaded?",
         # "How many records are in the file I uploaded?",
-        # "What are my top 5 expense categories?",
+        "What are my top 5 expense categories?",
         # "How has my spending in groceries changed over the year?",
         # "Are there any unusual or suspicious transactions in my accounts?",
         # "What are the columns in the file i uploaded?",
         # "Use the pandas df.describe() function on the dataframe and provide your thoughts and analysis in your final answer.",
-        # "What's the total amount of money spent in the file i uploaded?",
+        "What's the total amount of money spent in the file i uploaded?",
         # "How much money do is spent in a typical month?"
-        "Generate a single line of python code not surrounded by quotes to draw a streamlit line chart using the object 'uploaded'. do not explain your response or ask about follow up questions. streamlit is already imported and available as 'st'. return only valid, executable python code that starts with the characters 'st.'. For example, here's a working line that your response should always look like: st.line_chart(pd.read_csv(uploaded), x=\"Date\", y=\"Amount\")"
+        # "Generate a single line of python code not surrounded by quotes to draw a streamlit line chart using the object 'uploaded'. do not explain your response or ask about follow up questions. streamlit is already imported and available as 'st'. return only valid, executable python code that starts with the characters 'st.'. For example, here's a working line that your response should always look like: st.line_chart(pd.read_csv(uploaded), x=\"Date\", y=\"Amount\")"
     ]
     for prompt in intial_prompts:
         add_user_prompt(prompt)
         with st.spinner(text=get_random_thought()):
             with get_openai_callback() as cb:
                 add_assistant_response(st.session_state["agent"].run(BUDGET_PROMPT + prompt), cb)
-    outro = "Thanks! What are some other questions I should ask you about my transactions?"
+    outro = "Thanks! What are 3 other questions I should ask you about my transactions?"
     
     add_user_prompt(outro)
     with st.spinner(text=get_random_thought()):
