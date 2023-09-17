@@ -92,7 +92,7 @@ with st.sidebar:
 
 
 if uploaded is not None and "agent" not in st.session_state and openai_api_key:
-    st.session_state["model_id"] = "gpt-3.5-turbo-0613"
+    st.session_state["model_id"] = "gpt-4"
     st.session_state["llm"] = ChatOpenAI(model_name=st.session_state["model_id"], openai_api_key=openai_api_key, temperature=0)
     tools = []
     st.session_state["agent"] = create_csv_agent(
