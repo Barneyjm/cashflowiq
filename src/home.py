@@ -51,7 +51,9 @@ def add_assistant_response(response, cb=None):
         msg = {"role": "assistant", "content": response}
         st.session_state.messages.append(msg)
         st.chat_message("assistant").write(msg["content"])
-    
+
+def load_example_file():
+    return open('1000ExampleRecords.csv')
 
 def add_user_prompt(prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -76,20 +78,23 @@ if "token_usage" not in st.session_state:
  
 
 with st.sidebar:
-    st.markdown("# CashFlowIQ")
+    st.markdown("# CashFlowIQ 💰✨")
     st.markdown("---")
     st.markdown("CashFlowIQ can analyze your personal finance transactions and help you save money!")
     # openai_api_key = st.sidebar.text_input("OpenAI API Key", key="chatbot_api_key", type="password", autocomplete="off")
     openai_api_key = st.secrets.openai.api_key
+
     uploaded = st.file_uploader("Upload Transactions")
-    st.sidebar.button("New Chat", on_click=new_chat, type="primary")
+    st.download_button("Download Example Transactions", data=load_example_file(), use_container_width=True)
+
+    st.sidebar.button("New Chat", on_click=new_chat, type="primary", use_container_width=True)
     st.markdown("---")
     if "token_usage" in st.session_state:
         st.text_input(disabled=True, label="Total Tokens", value=st.session_state['token_usage'].get('total_tokens'))
         st.text_input(disabled=True, label="Prompt Tokens", value=st.session_state['token_usage'].get('prompt_tokens'))
         st.text_input(disabled=True, label="Completion Tokens", value=st.session_state['token_usage'].get('completion_tokens'))
         st.text_input(disabled=True, label="Total Cost (USD)", value="$"+str(st.session_state['token_usage'].get('total_cost')))
-    st.sidebar.button("Refresh Token Data")
+    st.sidebar.button("Refresh Token Data", use_container_width=True)
 
 
 if uploaded is not None and "agent" not in st.session_state and openai_api_key:
