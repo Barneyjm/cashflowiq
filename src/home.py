@@ -3,6 +3,7 @@ import pandas as pd
 from langchain.chat_models import ChatOpenAI
 from langchain.callbacks import get_openai_callback
 from collections import Counter
+import os
 import random
 
 from langchain.agents import initialize_agent, AgentType, Tool, create_csv_agent
@@ -75,7 +76,10 @@ def add_assistant_response(response, cb=None):
         st.toast("Sorry about that, I'm still learning. Try asking the question again, usually I can get it right the second time.", icon='🤖')
 
 def load_example_file():
-    return open('1000ExampleRecords.csv')
+    if os.getenv('HOSTED'):
+        return open('src/1000ExampleRecords.csv')
+    else:
+       return open('1000ExampleRecords.csv') 
 
 def add_user_prompt(prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -88,6 +92,11 @@ def parse_cb(callback):
         "completion_tokens": callback.completion_tokens,
         "total_cost": callback.total_cost
     })
+
+def get_return(investment, profit):
+    investment = float(investment[1:])
+    profit = float(profit[1:])
+    return (profit - investment)/investment
 
 if "stored_session" not in st.session_state:
     st.session_state["stored_session"] = []
@@ -104,19 +113,28 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("CashFlowIQ can analyze your personal finance transactions and help you save money!")
     st.markdown("Download your transactions from your personal finance app like [Intuit Mint](https://mint.intuit.com/transactions) or [Rocket Money](https://app.rocketmoney.com/transactions).")
+    st.markdown("No information is stored permanently and all data processing happens in your browser on your device.")
+    with st.expander("_Just want to try it first? Click here_"):
+        st.download_button("Download Example Transactions", data=load_example_file(), use_container_width=True)
+
     # openai_api_key = st.sidebar.text_input("OpenAI API Key", key="chatbot_api_key", type="password", autocomplete="off")
     openai_api_key = st.secrets.openai.api_key
 
-    uploaded = st.file_uploader("Upload Transactions")
-    st.download_button("Download Example Transactions", data=load_example_file(), use_container_width=True)
+    uploaded = st.file_uploader("Upload Transactions", type="csv")
 
-    st.sidebar.button("New Chat", on_click=new_chat, type="primary", use_container_width=True)
+    if len(st.session_state['messages']) != 1:
+        st.button("New Chat", on_click=new_chat, type="primary", use_container_width=True)
     st.markdown("---")
     if "token_usage" in st.session_state:
-        st.text_input(disabled=True, label="Total Tokens", value=st.session_state['token_usage'].get('total_tokens'))
-        st.text_input(disabled=True, label="Prompt Tokens", value=st.session_state['token_usage'].get('prompt_tokens'))
-        st.text_input(disabled=True, label="Completion Tokens", value=st.session_state['token_usage'].get('completion_tokens'))
-        st.text_input(disabled=True, label="Total Cost (USD)", value="$"+str(st.session_state['token_usage'].get('total_cost')))
+        st.markdown("Model Usage Stats")
+        total_cost = st.text_input(disabled=True, label="Total Cost (USD)", value="$"+str(st.session_state['token_usage'].get('total_cost')))
+        # theo_savings = st.text_input(label="Theoretical Monthly Savings (USD)", value="$20")
+        # total_return = get_return(total_cost, theo_savings)
+        # st.markdown(total_return)
+        with st.expander("Advanced"):
+            st.text_input(disabled=True, label="Total Tokens", value=st.session_state['token_usage'].get('total_tokens'))
+            st.text_input(disabled=True, label="Prompt Tokens", value=st.session_state['token_usage'].get('prompt_tokens'))
+            st.text_input(disabled=True, label="Completion Tokens", value=st.session_state['token_usage'].get('completion_tokens'))
     st.sidebar.button("Refresh Token Data", use_container_width=True)
 
 if uploaded is not None and "agent" not in st.session_state and openai_api_key:
@@ -184,7 +202,6 @@ if prompt := st.chat_input(disabled=uploaded is None):
                     add_assistant_response(prompt)
                 else:
                     add_assistant_response(st.session_state["agent"].run(BUDGET_PROMPT + prompt), cb)
-
 
     
         
