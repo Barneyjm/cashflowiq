@@ -35,6 +35,22 @@ LOADING_THOUGHTS = [
     "Hang in there... CashFlowIQ is budgeting for intergalactic vacations 🌌✈️"
 ]
 
+GRAPH_PREFIX = "GRAPH: ~{}~ Respond with a single line of python code. Do not surround the line by any single-quotes, double-quotes, or backticks. The line should draw a streamlit chart. The dataframe object you need to use is called 'pd.read_csv(uploaded)'. for example, instead of referencing 'df' in the streamlit command, reference 'uploaded like this: st.bar_chart(pd.read_csv(uploaded), x=\"Date\", y=\"Amount\"). do not explain your response or ask about follow up questions. the streamlit library is already imported and available as 'st'. pandas library is already imported and available as 'pd'. return only valid, executable python code that starts with the characters 'st.'. For example, here are several a working lines that your response should always look like: \nst.bar_chart(pd.read_csv(uploaded), x=\"Date\", y=\"Amount\") \n st.line_chart(pd.read_csv(uploaded), x=\"Date\", y=\"Amount\") \n st.bar_chart(pd.read_csv(uploaded), x=\"Date\", y=\"Amount\")"
+
+INITIAL_PROMPTS = [
+        GRAPH_PREFIX.format("Show me a line chart showing my daily balance."),
+        # "Describe the data in the file I just uploaded?",
+        # "How many records are in the file I uploaded?",
+        # "What are my top 5 expense categories?",
+        # "What are my most common vendor transactions?",
+        # "How has my spending in groceries changed over the year?",
+        # "Are there any unusual or suspicious transactions in my accounts?",
+        # "What are the columns in the file i uploaded?",
+        # "Use the pandas df.describe() function on the dataframe and provide your thoughts and analysis in your final answer.",
+        # "What's the total amount of money spent in the file i uploaded?",
+        # "How much money do is spent in a typical month?"
+    ]
+
 def get_random_thought():
     return LOADING_THOUGHTS[random.randint(0, len(LOADING_THOUGHTS)-1)]
       
@@ -45,12 +61,18 @@ def new_chat():
 def add_assistant_response(response, cb=None):
     if cb:
         st.session_state["token_usage"] += parse_cb(cb)
-    if response.startswith('st.'):
-        eval(response) 
-    else:
-        msg = {"role": "assistant", "content": response}
-        st.session_state.messages.append(msg)
-        st.chat_message("assistant").write(msg["content"])
+    try:
+        if response.startswith('st.'):
+            msg = {"role": "assistant", "content": response}
+            st.session_state.messages.append(msg)
+            eval(response) 
+        else:
+            msg = {"role": "assistant", "content": response}
+            st.session_state.messages.append(msg)
+            st.chat_message("assistant").write(msg["content"])
+    except Exception as e:
+        st.chat_message("assistant").write("Hmm, something went wrong. Here's my last thought: " + str(response))
+        st.toast("Sorry about that, I'm still learning. Try asking the question again, usually I can get it right the second time.", icon='🤖')
 
 def load_example_file():
     return open('1000ExampleRecords.csv')
@@ -81,6 +103,7 @@ with st.sidebar:
     st.markdown("# CashFlowIQ 💰✨")
     st.markdown("---")
     st.markdown("CashFlowIQ can analyze your personal finance transactions and help you save money!")
+    st.markdown("Download your transactions from your personal finance app like [Intuit Mint](https://mint.intuit.com/transactions) or [Rocket Money](https://app.rocketmoney.com/transactions).")
     # openai_api_key = st.sidebar.text_input("OpenAI API Key", key="chatbot_api_key", type="password", autocomplete="off")
     openai_api_key = st.secrets.openai.api_key
 
@@ -95,7 +118,6 @@ with st.sidebar:
         st.text_input(disabled=True, label="Completion Tokens", value=st.session_state['token_usage'].get('completion_tokens'))
         st.text_input(disabled=True, label="Total Cost (USD)", value="$"+str(st.session_state['token_usage'].get('total_cost')))
     st.sidebar.button("Refresh Token Data", use_container_width=True)
-
 
 if uploaded is not None and "agent" not in st.session_state and openai_api_key:
     st.session_state["model_id"] = "gpt-4"
@@ -113,24 +135,19 @@ if uploaded is not None and "agent" not in st.session_state and openai_api_key:
             )
 
     add_assistant_response("Thanks for uploading that! I'll start crunching the numbers right away...", None)
-    intial_prompts = [
-        # "Describe the data in the file I just uploaded?",
-        # "How many records are in the file I uploaded?",
-        "What are my top 5 expense categories?",
-        "What are my most common vendor transactions?",
-        # "How has my spending in groceries changed over the year?",
-        # "Are there any unusual or suspicious transactions in my accounts?",
-        # "What are the columns in the file i uploaded?",
-        # "Use the pandas df.describe() function on the dataframe and provide your thoughts and analysis in your final answer.",
-        # "What's the total amount of money spent in the file i uploaded?",
-        # "How much money do is spent in a typical month?"
-        # "Generate a single line of python code not surrounded by quotes to draw a streamlit line chart using the object 'uploaded'. do not explain your response or ask about follow up questions. streamlit is already imported and available as 'st'. return only valid, executable python code that starts with the characters 'st.'. For example, here's a working line that your response should always look like: st.line_chart(pd.read_csv(uploaded), x=\"Date\", y=\"Amount\")"
-    ]
-    for prompt in intial_prompts:
-        add_user_prompt(prompt)
-        with st.spinner(text=get_random_thought()):
-            with get_openai_callback() as cb:
-                add_assistant_response(st.session_state["agent"].run(BUDGET_PROMPT + prompt), cb)
+    
+    for prompt in INITIAL_PROMPTS:
+        if prompt.startswith('GRAPH'):
+            user_prompt = prompt.split('~')[1] # hiding the prompt template
+            add_user_prompt(user_prompt)
+            with st.spinner(text=get_random_thought()):
+                with get_openai_callback() as cb:
+                    add_assistant_response(st.session_state["agent"].run(prompt), cb)
+        else:
+            add_user_prompt(prompt)
+            with st.spinner(text=get_random_thought()):
+                with get_openai_callback() as cb:
+                    add_assistant_response(st.session_state["agent"].run(BUDGET_PROMPT + prompt), cb)
     outro = "Thanks! What are 3 other questions I should ask you about my transactions?"
     
     add_user_prompt(outro)
@@ -142,7 +159,13 @@ if "messages" not in st.session_state:
     st.session_state["messages"] = NEW_CHAT_START
 
 for msg in st.session_state.messages:
-    st.chat_message(msg["role"]).write(msg["content"])
+    if msg['content'].startswith('st.'):
+        try: 
+            eval(msg['content'])
+        except Exception as e:
+            st.toast("Loading a graph failed...")
+    else:
+        st.chat_message(msg["role"]).write(msg["content"])
 
 if prompt := st.chat_input(disabled=uploaded is None):
     if not openai_api_key.startswith('sk-'):
@@ -154,7 +177,17 @@ if prompt := st.chat_input(disabled=uploaded is None):
     if uploaded is not None and "agent" in st.session_state:
         with st.spinner(text=get_random_thought()):
             with get_openai_callback() as cb:
-                add_assistant_response(st.session_state["agent"].run(BUDGET_PROMPT + prompt), cb)
+                if prompt.startswith('GRAPH'):
+                    prompt = GRAPH_PREFIX.format(prompt)
+                    add_assistant_response(st.session_state["agent"].run(prompt), cb)
+                elif prompt.startswith('st.'):
+                    add_assistant_response(prompt)
+                else:
+                    add_assistant_response(st.session_state["agent"].run(BUDGET_PROMPT + prompt), cb)
+
+
+    
+        
 
 
     
