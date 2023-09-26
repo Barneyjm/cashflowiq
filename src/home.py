@@ -96,10 +96,7 @@ def add_assistant_response(response, cb=None):
         st.toast("Sorry about that, I'm still learning. Try asking the question again, usually I can get it right the second time.", icon='🤖')
 
 def load_example_file():
-    if os.getenv('HOSTED'):
-        return open('src/1000ExampleRecords.csv')
-    else:
-       return open('1000ExampleRecords.csv') 
+    return open('src/1000ExampleRecords.csv')
 
 def add_user_prompt(prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
